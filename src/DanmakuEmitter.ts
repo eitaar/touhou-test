@@ -4,7 +4,17 @@ import { Bullet } from './Bullet';
 /**
  * Pattern types for the Danmaku emitter
  */
-export type PatternType = 'spiral' | 'flower' | 'nway';
+export type PatternType =
+  | 'spiral'
+  | 'flower'
+  | 'nway'
+  | 'lissajous'
+  | 'lemniscate'
+  | 'logspiral'
+  | 'spirograph'
+  | 'cardioid'
+  | 'concentric'
+  | 'wavy';
 
 /**
  * Configuration for bullet patterns
@@ -23,11 +33,41 @@ export interface PatternConfig {
   // N-Way specific
   nwayCount?: number;
   nwaySpread?: number;
+
+  // Lissajous
+  lissajousA?: number;
+  lissajousB?: number;
+  lissajousAFreq?: number;
+  lissajousBFreq?: number;
+  lissajousPhase?: number;
+
+  // Lemniscate
+  lemniscateScale?: number;
+
+  // Logarithmic spiral
+  logA?: number;
+  logB?: number;
+
+  // Spirograph
+  spiroR?: number;
+  spiror?: number;
+  spiroD?: number;
+
+  // Cardioid
+  cardioidA?: number;
+
+  // Concentric rings
+  ringCount?: number;
+  ringSpacing?: number;
+
+  // Wavy spiral
+  waveA?: number;
+  waveK?: number;
 }
 
 /**
  * DanmakuEmitter class - Generates complex geometric bullet patterns
- * Implements Spiral, Flower, and N-Way patterns using trigonometry
+ * Implements Spiral, Flower, N-Way and additional mathematical patterns using trigonometry
  */
 export class DanmakuEmitter {
   public container: Container;
@@ -79,7 +119,7 @@ export class DanmakuEmitter {
     // Clean up out-of-bounds bullets
     this.cleanup();
 
-    // Increment angle for rotating patterns
+    // Increment angle for rotating/time-varying patterns
     this.angle += this.config.spiralRotationSpeed ?? 0.02;
   }
 
@@ -98,6 +138,27 @@ export class DanmakuEmitter {
         if (playerX !== undefined && playerY !== undefined) {
           this.emitNWay(playerX, playerY);
         }
+        break;
+      case 'lissajous':
+        this.emitLissajous();
+        break;
+      case 'lemniscate':
+        this.emitLemniscate();
+        break;
+      case 'logspiral':
+        this.emitLogSpiral();
+        break;
+      case 'spirograph':
+        this.emitSpirograph();
+        break;
+      case 'cardioid':
+        this.emitCardioid();
+        break;
+      case 'concentric':
+        this.emitConcentric();
+        break;
+      case 'wavy':
+        this.emitWavy();
         break;
     }
   }
@@ -143,7 +204,7 @@ export class DanmakuEmitter {
       // Rose curve: r = A * cos(k * theta)
       const r = amplitude * Math.cos(petals * theta);
       const speed = baseSpeed * (0.5 + Math.abs(r) * 0.5);
-      
+
       const vx = Math.cos(theta) * speed;
       const vy = Math.sin(theta) * speed;
 
@@ -190,6 +251,211 @@ export class DanmakuEmitter {
         this.config.bulletRadius,
         this.config.bulletColor
       );
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Lissajous curve pattern
+   */
+  private emitLissajous(): void {
+    const A = this.config.lissajousA ?? 80;
+    const B = this.config.lissajousB ?? 60;
+    const a = this.config.lissajousAFreq ?? 3;
+    const b = this.config.lissajousBFreq ?? 2;
+    const delta = this.config.lissajousPhase ?? Math.PI / 2;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 24;
+
+    for (let i = 0; i < numBullets; i++) {
+      const t = this.angle + (i * 2 * Math.PI) / numBullets;
+      const xPos = A * Math.sin(a * t + delta);
+      const yPos = B * Math.sin(b * t);
+
+      // approximate tangent by small step
+      const dt = 0.0001;
+      const nextX = A * Math.sin(a * (t + dt) + delta);
+      const nextY = B * Math.sin(b * (t + dt));
+      const vxRaw = nextX - xPos;
+      const vyRaw = nextY - yPos;
+      const len = Math.hypot(vxRaw, vyRaw) || 1;
+      const vx = (vxRaw / len) * speed;
+      const vy = (vyRaw / len) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Lemniscate (figure-eight) pattern
+   */
+  private emitLemniscate(): void {
+    const a = this.config.lemniscateScale ?? 60;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 18;
+
+    for (let i = 0; i < numBullets; i++) {
+      const theta = this.angle + (i * 2 * Math.PI) / numBullets;
+      const cos2 = Math.cos(2 * theta);
+      const r = a * Math.sqrt(Math.abs(cos2));
+      const sign = cos2 >= 0 ? 1 : -1;
+      const xPos = sign * r * Math.cos(theta);
+      const yPos = sign * r * Math.sin(theta);
+
+      const dir = Math.atan2(yPos, xPos);
+      const vx = Math.cos(dir) * speed;
+      const vy = Math.sin(dir) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Logarithmic spiral pattern
+   */
+  private emitLogSpiral(): void {
+    const a = this.config.logA ?? 0.3;
+    const b = this.config.logB ?? 0.25;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 16;
+
+    for (let i = 0; i < numBullets; i++) {
+      const theta = this.angle + i * 0.8;
+      const r = a * Math.exp(b * theta);
+      const xPos = r * Math.cos(theta);
+      const yPos = r * Math.sin(theta);
+
+      const dt = 0.0005;
+      const r2 = a * Math.exp(b * (theta + dt));
+      const x2 = r2 * Math.cos(theta + dt);
+      const y2 = r2 * Math.sin(theta + dt);
+      const vxRaw = x2 - xPos;
+      const vyRaw = y2 - yPos;
+      const len = Math.hypot(vxRaw, vyRaw) || 1;
+      const vx = (vxRaw / len) * speed;
+      const vy = (vyRaw / len) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Spirograph (epitrochoid) pattern
+   */
+  private emitSpirograph(): void {
+    const R = this.config.spiroR ?? 80;
+    const r = this.config.spiror ?? 20;
+    const d = this.config.spiroD ?? 40;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 32;
+
+    const k = (R + r) / r;
+    for (let i = 0; i < numBullets; i++) {
+      const t = this.angle + (i * 2 * Math.PI) / numBullets;
+      const xPos = (R + r) * Math.cos(t) - d * Math.cos(k * t);
+      const yPos = (R + r) * Math.sin(t) - d * Math.sin(k * t);
+
+      const dt = 0.0005;
+      const t2 = t + dt;
+      const x2 = (R + r) * Math.cos(t2) - d * Math.cos(k * t2);
+      const y2 = (R + r) * Math.sin(t2) - d * Math.sin(k * t2);
+      const vxRaw = x2 - xPos;
+      const vyRaw = y2 - yPos;
+      const len = Math.hypot(vxRaw, vyRaw) || 1;
+      const vx = (vxRaw / len) * speed;
+      const vy = (vyRaw / len) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Cardioid pattern
+   */
+  private emitCardioid(): void {
+    const a = this.config.cardioidA ?? 80;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 20;
+
+    for (let i = 0; i < numBullets; i++) {
+      const theta = this.angle + (i * 2 * Math.PI) / numBullets;
+      const r = a * (1 - Math.cos(theta));
+      const xPos = r * Math.cos(theta);
+      const yPos = r * Math.sin(theta);
+
+      const dir = Math.atan2(yPos, xPos);
+      const vx = Math.cos(dir) * speed;
+      const vy = Math.sin(dir) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+      this.bullets.push(bullet);
+      this.container.addChild(bullet.graphics);
+    }
+  }
+
+  /**
+   * Concentric rings pattern
+   */
+  private emitConcentric(): void {
+    const rings = this.config.ringCount ?? 3;
+    const spacing = this.config.ringSpacing ?? 24;
+    const speed = this.config.bulletSpeed;
+    const bulletsPerRing = 24;
+
+    for (let r = 0; r < rings; r++) {
+      const radius = (r + 1) * spacing + ((this.angle * 5) % spacing);
+      for (let i = 0; i < bulletsPerRing; i++) {
+        const theta = (i * 2 * Math.PI) / bulletsPerRing;
+        const xPos = radius * Math.cos(theta);
+        const yPos = radius * Math.sin(theta);
+        const dir = theta;
+        const vx = Math.cos(dir) * speed;
+        const vy = Math.sin(dir) * speed;
+
+        const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
+        this.bullets.push(bullet);
+        this.container.addChild(bullet.graphics);
+      }
+    }
+  }
+
+  /**
+   * Wavy spiral pattern
+   */
+  private emitWavy(): void {
+    const a = 6; // spiral growth
+    const A = this.config.waveA ?? 18;
+    const k = this.config.waveK ?? 6;
+    const speed = this.config.bulletSpeed;
+    const numBullets = 20;
+
+    for (let i = 0; i < numBullets; i++) {
+      const theta = this.angle + i * 0.5;
+      const r = a * theta + A * Math.sin(k * theta);
+      const xPos = r * Math.cos(theta);
+      const yPos = r * Math.sin(theta);
+
+      const dt = 0.0005;
+      const theta2 = theta + dt;
+      const r2 = a * theta2 + A * Math.sin(k * theta2);
+      const x2 = r2 * Math.cos(theta2);
+      const y2 = r2 * Math.sin(theta2);
+      const vxRaw = x2 - xPos;
+      const vyRaw = y2 - yPos;
+      const len = Math.hypot(vxRaw, vyRaw) || 1;
+      const vx = (vxRaw / len) * speed;
+      const vy = (vyRaw / len) * speed;
+
+      const bullet = new Bullet(this.x + xPos, this.y + yPos, vx, vy, this.config.bulletRadius, this.config.bulletColor);
       this.bullets.push(bullet);
       this.container.addChild(bullet.graphics);
     }
