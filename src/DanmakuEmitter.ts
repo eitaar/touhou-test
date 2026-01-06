@@ -202,9 +202,22 @@ export class DanmakuEmitter {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (bullet.isOutOfBounds(this.screenWidth, this.screenHeight)) {
+        this.container.removeChild(bullet.graphics);
         bullet.destroy();
         this.bullets.splice(i, 1);
       }
+    }
+  }
+
+  /**
+   * Remove a specific bullet from the emitter
+   */
+  public removeBullet(bullet: Bullet): void {
+    const index = this.bullets.indexOf(bullet);
+    if (index !== -1) {
+      this.container.removeChild(bullet.graphics);
+      bullet.destroy();
+      this.bullets.splice(index, 1);
     }
   }
 
@@ -227,6 +240,7 @@ export class DanmakuEmitter {
    */
   public clearBullets(): void {
     for (const bullet of this.bullets) {
+      this.container.removeChild(bullet.graphics);
       bullet.destroy();
     }
     this.bullets = [];

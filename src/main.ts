@@ -126,17 +126,24 @@ async function main(): Promise<void> {
     // Update emitter (pass player position for aimed patterns)
     emitter.update(delta, player.x, player.y);
 
-    // Check collisions
+    // Check collisions - collect bullets to remove first, then clean up
+    const bulletsToRemove: typeof emitter.bullets = [];
     for (const bullet of emitter.bullets) {
-      if (bullet.collidesWith(player.x, player.y, player.hitboxRadius)) {
-        // Flash effect on hit (simple visual feedback)
-        player.container.alpha = 0.5;
-        setTimeout(() => {
-          player.container.alpha = 1;
-        }, 100);
-        
-        // Remove the bullet that hit
-        bullet.destroy();
+      if (bullet.active && bullet.collidesWith(player.x, player.y, player.hitboxRadius)) {
+        bulletsToRemove.push(bullet);
+      }
+    }
+    
+    // Remove collided bullets after iteration
+    if (bulletsToRemove.length > 0) {
+      // Flash effect on hit (simple visual feedback)
+      player.container.alpha = 0.5;
+      setTimeout(() => {
+        player.container.alpha = 1;
+      }, 100);
+      
+      for (const bullet of bulletsToRemove) {
+        emitter.removeBullet(bullet);
       }
     }
 
