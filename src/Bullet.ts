@@ -45,11 +45,11 @@ export class Bullet {
     this.graphics.stroke({ color: this.color, width: 1, alpha: 0.5 });
   }
 
-  public update(_delta: number): void {
+  public update(delta: number): void {
     if (!this.active) return;
 
-    this.x += this.vx;
-    this.y += this.vy;
+    this.x += this.vx * delta;
+    this.y += this.vy * delta;
     this.graphics.position.set(this.x, this.y);
   }
 
