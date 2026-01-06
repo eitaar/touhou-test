@@ -199,14 +199,18 @@ export class DanmakuEmitter {
    * Remove bullets that are out of bounds
    */
   private cleanup(): void {
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const bullet = this.bullets[i];
+    const activeBullets: Bullet[] = [];
+
+    for (const bullet of this.bullets) {
       if (bullet.isOutOfBounds(this.screenWidth, this.screenHeight)) {
         this.container.removeChild(bullet.graphics);
         bullet.destroy();
-        this.bullets.splice(i, 1);
+      } else {
+        activeBullets.push(bullet);
       }
     }
+
+    this.bullets = activeBullets;
   }
 
   /**
